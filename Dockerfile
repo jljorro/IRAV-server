@@ -30,6 +30,11 @@ RUN a2ensite web1
 RUN a2ensite web2
 RUN a2ensite node-api.com
 
+## Abrimos los puertos de nuestro servidor (Apache y Nodejs)
+EXPOSE 80
+EXPOSE 81
+EXPOSE 82
+
 # [NODEJS]
 ## Instalamos nodejs
 RUN apt install -y nodejs npm
@@ -38,11 +43,39 @@ RUN apt install -y nodejs npm
 WORKDIR /var/www/sites/node-api.com
 COPY ./sites/node-api.com/* .
 
-## Abrimos los puertos de nuestro servidor (Apache y Nodejs)
-EXPOSE 80
-EXPOSE 81
-EXPOSE 82
-#EXPOSE 3000
+# [VSFTP]
+## Instalamos vsftpd
+RUN apt install -y vsftpd
+
+## Copiamos el fichero de configuración de vsftpd
+COPY ./config/vsftp/vsftpd.conf /etc/vsftpd.conf
+
+## Copiamos el fichero de usuarios
+COPY ./config/vsftp/vsftpd.userlist /etc/vsftpd.userlist
+
+## Creamos un usuario para el servidor ftp
+RUN adduser adminftp && echo "password\npassword" | passwd adminftp
+
+## Creamos el directio de seguridad vacio. Si no existe, vsftpd no arranca
+RUN mkdir /var/run/vsftpd
+RUN mkdir /var/run/vsftpd/empty
+
+## Creamos el directorio raiz donde podrá acceder el usuario con ftp
+RUN mkdir /home/adminftp/ftp
+RUN chown -R nobody:nogroup /home/adminftp/ftp
+RUN chmod -R a-w /home/adminftp/ftp
+
+## Creamos el directorion donde se almacenarán los ficheros en el servidor ftp
+RUN mkdir /home/adminftp/ftp/files
+RUN chown -R adminftp:adminftp /home/adminftp/ftp/files
+
+## Copiamos un fichero de ejemplo en ese directorio
+COPY ./config/vsftp/ejemplo.txt /home/adminftp/ftp/files/ejemplo.txt
+
+## Habilitamos los puertos de vsftpd 20, 21 y conexiones extras (40000-40100)
+EXPOSE 20
+EXPOSE 21
+EXPOSE 40000-40100
 
 # Arrancamos apache en Background
 # CMD ["./usr/local/home/start-server.sh"]
